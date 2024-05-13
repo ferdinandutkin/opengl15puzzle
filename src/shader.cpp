@@ -1,4 +1,4 @@
-#include <demoShader.h>
+#include <shader.h>
 #include <iostream>
 #include <fstream>
 
@@ -78,7 +78,7 @@ GLint createShaderFromFile(const char *name, GLenum shaderType)
 	return rez;
 }
 
-bool Shader::loadShaderProgramFromData(const char *vertexShaderData, const char *fragmentShaderData)
+bool shader::loadShaderProgramFromData(const char *vertexShaderData, const char *fragmentShaderData)
 {
 	auto vertexId = createShaderFromData(vertexShaderData, GL_VERTEX_SHADER);
 	auto fragmentId = createShaderFromData(fragmentShaderData, GL_FRAGMENT_SHADER);
@@ -126,7 +126,7 @@ bool Shader::loadShaderProgramFromData(const char *vertexShaderData, const char 
 	return true;
 }
 
-bool Shader::loadShaderProgramFromData(const char *vertexShaderData, const char *geometryShaderData, const char *fragmentShaderData)
+bool shader::loadShaderProgramFromData(const char *vertexShaderData, const char *geometryShaderData, const char *fragmentShaderData)
 {
 	auto vertexId = createShaderFromData(vertexShaderData, GL_VERTEX_SHADER);
 	auto geometryId = createShaderFromData(geometryShaderData, GL_GEOMETRY_SHADER);
@@ -177,7 +177,7 @@ bool Shader::loadShaderProgramFromData(const char *vertexShaderData, const char 
 	return true;
 }
 
-bool Shader::loadShaderProgramFromFile(const char *vertexShader, const char *fragmentShader)
+bool shader::loadShaderProgramFromFile(const char *vertexShader, const char *fragmentShader)
 {
 
 	auto vertexId = createShaderFromFile(vertexShader, GL_VERTEX_SHADER);
@@ -227,7 +227,7 @@ bool Shader::loadShaderProgramFromFile(const char *vertexShader, const char *fra
 	return true;
 }
 
-bool Shader::loadShaderProgramFromFile(const char *vertexShader, const char *geometryShader, const char *fragmentShader)
+bool shader::loadShaderProgramFromFile(const char *vertexShader, const char *geometryShader, const char *fragmentShader)
 {
 	auto vertexId = createShaderFromFile(vertexShader, GL_VERTEX_SHADER);
 	auto geometryId = createShaderFromFile(geometryShader, GL_GEOMETRY_SHADER);
@@ -278,23 +278,59 @@ bool Shader::loadShaderProgramFromFile(const char *vertexShader, const char *geo
 	return true;
 }
 
-void Shader::bind()
+void shader::use()
 {
 	glUseProgram(id);
 }
 
-void Shader::clear()
+void shader::clear() 
 {
 	glDeleteProgram(id);
 	id = 0;
 }
 
-GLint Shader::getUniform(const char *name)
+GLint shader::getUniform(const char *name) const
 {
 	return ::getUniform(this->id, name);
 }
 
-GLint getUniform(GLuint shaderId, const char *name)
+void shader::setBool(const std::string& name, bool value) const
+{
+	glUniform1i(getUniform(name.c_str()), (int)value);
+}
+void shader::setInt(const std::string& name, int value) const
+{
+	glUniform1i(getUniform(name.c_str()), value);
+}
+void shader::setFloat(const std::string& name, float value) const
+{
+	glUniform1f(getUniform(name.c_str()), value);
+}
+
+void shader::setVec4(const std::string& name, float x, float y, float z, float w) const
+{
+	glUniform4f(getUniform(name.c_str()), x, y, z, w);
+}
+
+void shader::setVec3(const std::string& name, float x, float y, float z) const
+{
+	glUniform3f(getUniform(name.c_str()), x, y, z);
+}
+
+void shader::setVec2(const std::string& name, float x, float y) const
+{
+	glUniform2f(getUniform(name.c_str()), x, y);
+}
+
+
+
+shader::~shader() 
+{
+	clear();
+}
+
+
+GLint getUniform(GLuint shaderId, const char *name) 
 {
 	GLint uniform = glGetUniformLocation(shaderId, name);
 	if (uniform == -1)

@@ -1,7 +1,8 @@
 #pragma once
 #include <glad/glad.h>
+#include <string>
 
-struct Shader
+struct shader
 {
 	GLuint id = 0;
 
@@ -13,11 +14,22 @@ struct Shader
 	bool loadShaderProgramFromFile(const char *vertexShader,
 		const char *geometryShader, const char *fragmentShader);
 
-	void bind();
+	void use();
 
 	void clear();
 
-	GLint getUniform(const char *name);
+	GLint getUniform(const char *name) const;
+
+	void setBool(const std::string& name, bool value) const;
+	void setInt(const std::string& name, int value) const;
+	void setFloat(const std::string& name, float value) const;
+
+	void setVec4(const std::string& name, float x, float y, float z, float w) const;
+	void setVec3(const std::string& name, float x, float y, float z) const;
+	void setVec2(const std::string& name, float x, float y) const;
+
+	~shader();
+
 };
 
 GLint getUniform(GLuint shaderId, const char *name);

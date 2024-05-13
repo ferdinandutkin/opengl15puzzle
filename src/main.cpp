@@ -2,10 +2,13 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <openglDebug.h>
-#include <demoShader.h>
+#include <shader.h>
 #include <iostream>
 #include <algorithm>
 #include <queue>
+#include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 //#include "C:\Program Files\RenderDoc\renderdoc_app.h"
 
@@ -25,19 +28,14 @@ const unsigned int SCR_HEIGHT = 800;
 
 const unsigned int ROWS = 4;
 const unsigned int COLUMNS = 4;
+const unsigned int MAX_INDEX = ROWS * COLUMNS - 1;
 
 
-#pragma pack(push, 1)
 struct instance_data {
-    float x_offset;
-    float y_offset;
-
-    float r;
-    float g;
-    float b;
-    float a;
+    glm::vec2 offset;
+    glm::vec4 color;
 };
-#pragma pack(pop)
+
 
 
 
@@ -96,12 +94,12 @@ int main(void)
     glEnable(GL_BLEND);
 
 	//shader loading example
-	Shader shader;
+	shader shader;
 	shader.loadShaderProgramFromFile(RESOURCES_PATH "vertex.vert", RESOURCES_PATH "fragment.frag");
-	shader.bind();
+	shader.use();
 
 
-    float length = 0.08;
+    float length = 0.25;
 
 
     float vertices[] = {
@@ -126,13 +124,16 @@ int main(void)
 
 
             data[writeindex] = {
-                .x_offset = xlocal,
-                .y_offset = ylocal,
-                .r = (float)writeindex / (ROWS * COLUMNS - 1.f),
-                .g = 0,
-                .b = 0,
-                .a = (float)!(row == 3 && column == 3)
-
+                .offset = {
+                    xlocal,
+                    ylocal
+                 },
+                .color = {
+                    (float)writeindex / (MAX_INDEX),
+                     0,
+                     0,
+                    (float)(writeindex != MAX_INDEX)
+            }
             };
 
         }
@@ -169,7 +170,7 @@ int main(void)
 
     glEnableVertexAttribArray(offsetAttrib);
     glBindBuffer(GL_ARRAY_BUFFER, VBOinstance);
-    glVertexAttribPointer(offsetAttrib, 2, GL_FLOAT, GL_FALSE, sizeof(instance_data), (void*)offsetof(instance_data, x_offset));
+    glVertexAttribPointer(offsetAttrib, 2, GL_FLOAT, GL_FALSE, sizeof(instance_data), (void*)offsetof(instance_data, offset));
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glVertexAttribDivisor(offsetAttrib, 1);
 
@@ -178,7 +179,7 @@ int main(void)
 
     glEnableVertexAttribArray(colorAttrib);
     glBindBuffer(GL_ARRAY_BUFFER, VBOinstance);
-    glVertexAttribPointer(colorAttrib, 4, GL_FLOAT, GL_FALSE, sizeof(instance_data), (void*)offsetof(instance_data, r));
+    glVertexAttribPointer(colorAttrib, 4, GL_FLOAT, GL_FALSE, sizeof(instance_data), (void*)offsetof(instance_data, color));
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glVertexAttribDivisor(colorAttrib, 1);
 
@@ -187,7 +188,7 @@ int main(void)
 
     glBindVertexArray(0);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  //  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     glBindVertexArray(VAO);
 
@@ -216,9 +217,14 @@ int main(void)
               /*  glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
                 glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_DYNAMIC_DRAW);*/
 
-            /*    glBufferSubData(GL_ARRAY_BUFFER, indexes.second * sizeof(instance_data),
+    /*            glBufferSubData(GL_ARRAY_BUFFER, indexes.second * sizeof(instance_data),
+                    sizeof(instance_data),
+                    &data);
+
+                glBufferSubData(GL_ARRAY_BUFFER, indexes.first * sizeof(instance_data),
                     sizeof(instance_data),
                     &data);*/
+
 
 
                 void* ptr = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
@@ -273,17 +279,28 @@ int main(void)
 
 
 void relocate_empty_cell_if_posssible(int row_offset, int col_offset) {
-    auto empty_cell_iter = std::find_if(std::begin(data), std::end(data), [](const instance_data& entry) {return entry.a < 0.01; });
+
+    auto empty_cell_iter = std::find_if(std::begin(data), std::end(data), [](const instance_data& entry) {return entry.color.a < 0.01; });
 
     if (empty_cell_iter == std::end(data))
     {
         return;
     }
+
     
     auto empty_cell_index = std::distance(std::begin(data), empty_cell_iter);
 
     auto row = empty_cell_index / COLUMNS;
     auto column = empty_cell_index % ROWS;
+
+
+    if (column + col_offset >= COLUMNS || column + col_offset < 0) {
+        return;
+    }
+
+    if (row + row_offset >= ROWS || row + row_offset < 0) {
+        return;
+    }
 
     auto target_cell_index = ((row + row_offset) * ROWS + column + col_offset);
 
@@ -292,7 +309,7 @@ void relocate_empty_cell_if_posssible(int row_offset, int col_offset) {
         return;
     }
 
-    std::swap(data[empty_cell_index], data[target_cell_index]);
+    std::swap(data[empty_cell_index].color, data[target_cell_index].color);
 
 
 
@@ -321,12 +338,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-        relocate_empty_cell_if_posssible(0, -1);
+        relocate_empty_cell_if_posssible(0, +1);
         return;
     }
 
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-        relocate_empty_cell_if_posssible(0, +1);
+        relocate_empty_cell_if_posssible(0, -1);
         return;
     }
 
