@@ -7,18 +7,15 @@
 #include <algorithm>
 #include <queue>
 
-//#include "renderdoc_app.h"
+//#include "C:\Program Files\RenderDoc\renderdoc_app.h"
+
+
+#include <Windows.h>
+
+#include <cassert>
 
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-
-
-#define USE_GPU_ENGINE 0
-extern "C"
-{
-	__declspec(dllexport) unsigned long NvOptimusEnablement = USE_GPU_ENGINE;
-	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = USE_GPU_ENGINE;
-}
 
 
 const unsigned int SCR_WIDTH = 800;
@@ -56,21 +53,20 @@ int main(void)
 {
 
     //RENDERDOC_API_1_1_2* rd = nullptr;
-    //if (const HMODULE mod = LoadLibrary(L"renderdoc.dll")) {
+    //if (const HMODULE mod = LoadLibrary("C:\\Program Files\\RenderDoc\\renderdoc.dll")) {
     //    const auto RENDERDOC_GetAPI = reinterpret_cast<pRENDERDOC_GetAPI>(GetProcAddress(mod, "RENDERDOC_GetAPI"));
     //    assert(RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, reinterpret_cast<void**>(&rd)));
     //}
-    //rd->StartFrameCapture(nullptr, nullptr);
 
 
-	if (!glfwInit())
-		return -1;
+    if (!glfwInit()) {
+        return -1;
+    }
 
 
-#pragma region report opengl errors to std
 	//enable opengl debugging output.
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-#pragma endregion
+
 
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -91,14 +87,10 @@ int main(void)
 	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 	glfwSwapInterval(1);
 
-
-#pragma region report opengl errors to std
 	glEnable(GL_DEBUG_OUTPUT);
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(glDebugOutput, 0);
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-#pragma endregion
-
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
@@ -195,64 +187,72 @@ int main(void)
 
     glBindVertexArray(0);
 
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    glBindVertexArray(VAO);
+
+
+    while (!glfwWindowShouldClose(window))
+    {
+        // Clear the color buffer
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // Check if there are any updates to the buffer data
+        if (!indexes_to_update.empty()) {
+            glBindBuffer(GL_ARRAY_BUFFER, VBOinstance);
+
+            // Process each update
+            while (!indexes_to_update.empty()) {
+                auto indexes = indexes_to_update.front();
 
 
 
-	while (!glfwWindowShouldClose(window))
-	{
-        
-
-            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
+          /*      glBufferSubData(GL_ARRAY_BUFFER, 0,
+                    sizeof(data),
+                    &data);*/
 
 
+              /*  glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_DYNAMIC_DRAW);*/
 
-            bool was_update = false;
-
-            if (!indexes_to_update.empty()) {
-                glBindBuffer(GL_ARRAY_BUFFER, VBOinstance);
-
-
-                while (!indexes_to_update.empty()) {
-                    auto indexes = indexes_to_update.front();
-
-                    auto ordered_indexes = std::minmax(indexes.first, indexes.second);
+            /*    glBufferSubData(GL_ARRAY_BUFFER, indexes.second * sizeof(instance_data),
+                    sizeof(instance_data),
+                    &data);*/
 
 
-                    glBufferSubData(GL_ARRAY_BUFFER, ordered_indexes.first * sizeof(instance_data), (ordered_indexes.second - ordered_indexes.first + 1) * sizeof(instance_data), &data[ordered_indexes.first]);
-                    // does not work
+                void* ptr = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+       
+                memcpy(ptr, data, sizeof(data));
+                glUnmapBuffer(GL_ARRAY_BUFFER);
 
-                    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(data), data);
-                    // does not work too
 
 
-                    indexes_to_update.pop();
+                // Re-enable both color and offset attributes
+                glEnableVertexAttribArray(colorAttrib);
+                glEnableVertexAttribArray(offsetAttrib);
 
-                    was_update = true;
-                }
-
-                glBindBuffer(GL_ARRAY_BUFFER, 0);
+                // Remove processed update
+                indexes_to_update.pop();
             }
 
+            // Unbind the buffer
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
 
 
+        // Bind vertex array object
 
-            glBindVertexArray(VAO);
 
-            glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, 16);
+        // Draw the instances
+        glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0, 16);
 
-            //if (was_update) {
-            //    Sleep(1000);
-            //}
+        // Swap buffers and poll events
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
 
-            glfwSwapBuffers(window);
-            glfwPollEvents();
-	}
 
-	//there is no need to call the clear function for the libraries since the os will do that for us.
-	//by calling this functions we are just wasting time.
-	//glfwDestroyWindow(window);
 
 
     glDeleteVertexArrays(1, &VAO);
@@ -262,6 +262,7 @@ int main(void)
     shader.clear();
 
 
+    glfwDestroyWindow(window);
 	glfwTerminate();
 
 
@@ -271,19 +272,15 @@ int main(void)
 
 
 
-int locate_empty_cell() {
-    for (int i = 0; i < sizeof(data) / sizeof(instance_data); i++) {
-        if (data[i].a < 0.01)
-        {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
 void relocate_empty_cell_if_posssible(int row_offset, int col_offset) {
-    auto empty_cell_index = locate_empty_cell();
+    auto empty_cell_iter = std::find_if(std::begin(data), std::end(data), [](const instance_data& entry) {return entry.a < 0.01; });
+
+    if (empty_cell_iter == std::end(data))
+    {
+        return;
+    }
+    
+    auto empty_cell_index = std::distance(std::begin(data), empty_cell_iter);
 
     auto row = empty_cell_index / COLUMNS;
     auto column = empty_cell_index % ROWS;
